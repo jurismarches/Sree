@@ -2,6 +2,7 @@
 #encoding=utf-8
 
 import json
+import os
 
 from flask import Flask
 from flask import json
@@ -16,10 +17,24 @@ import hashlib
 
 app = Flask(__name__, static_url_path='')
 
+try:
+    from urlparse import urlparse, urlunparse
+except ImportError:
+    from urllib.parse import urlparse, urlunparse
+
+
+def get_url_from_req(request):
+    url = from_request(request, 'url')
+    parsed = urlparse(url)
+    s3_endpoint = app.config['S3_ENDPOINT']
+    return urlunparse((parsed[0], s3_endpoint, parsed[2], parsed[3], parsed[4], parsed[5]))
+
+
 def from_request(request, k):
     if not request.json:
         raise Exception("Invalid Request")
     return str(request.json[k])
+
 
 def req(url, method):
     command = requests.get
@@ -35,7 +50,7 @@ def req(url, method):
 
 @app.route("/createbucket", methods = ['POST'])
 def create():
-  url = from_request(request, 'url')
+  url = get_url_from_req(request)
   statuscode = req(url, 'PUT')
 
   if statuscode == 200:
@@ -54,7 +69,7 @@ def create():
 
 @app.route("/deletebucket", methods = ['DELETE'])
 def delete():
-  url = from_request(request, 'url')
+  url = get_url_from_req(request)
   statuscode = req(url, 'DELETE')
 
   if statuscode == 204:
@@ -72,7 +87,7 @@ def delete():
 
 @app.route("/putcors", methods = ['PUT'])
 def putcors():
-  corsurl = from_request(request, 'url')
+  corsurl = get_url_from_req(request)
   s3auth = from_request(request, 's3auth')
   date = from_request(request, 'date')
 
@@ -111,7 +126,7 @@ def putcors():
 
 @app.route("/getservice", methods = ['POST'])
 def listbucketsurl():
-  url = from_request(request, 'url')
+  url = get_url_from_req(request)
   s3auth = from_request(request, 's3auth')
   date = from_request(request, 'date')
 
@@ -143,5 +158,28 @@ def root():
 def static_files(path):
     return send_from_directory('static', path)
 
+@app.route("/gets3config")
+def s3_config():
+    config = dict()
+    config["endpoint"] = app.config['S3_EXT_ENDPOINT']
+    config["accessKeyId"] = app.config['S3_ACCESS_KEY']
+    config["secretAccessKey"] = app.config["S3_SECRET_KEY"]
+    config["region"] = app.config["S3_REGION"]
+
+    resp = Response(response=json.dumps(config))
+    resp.headers['Content-type'] = 'application/json; charset=UTF-8'
+    return resp
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, threaded=True)
+    app.config['SREE_PORT'] = os.environ.get('SREE_PORT', 5000)
+    app.config['FLASK_DEBUG'] = os.environ.get('FLASK_DEBUG', False)
+    app.config['S3_ENDPOINT'] = os.environ.get('S3_ENDPOINT', 'http://s3.amazonaws.com')
+    app.config['S3_EXT_ENDPOINT'] = os.environ.get('S3_EXT_ENDPOINT', app.config['S3_ENDPOINT'])
+    app.config['S3_ACCESS_KEY'] = os.environ.get('S3_ACCESS_KEY')
+    app.config['S3_SECRET_KEY'] = os.environ.get('S3_SECRET_KEY')
+    app.config['S3_REGION'] = os.environ.get('S3_REGION')
+
+    flask_port = app.config['SREE_PORT']
+    flask_debug = app.config['FLASK_DEBUG']
+
+    app.run(host='0.0.0.0', port=flask_port, threaded=True, debug=flask_debug)

@@ -6,6 +6,13 @@ define(['jquery', 'bootstrap', 'dataTableBootstrap', 'aws'],
             this.s3 = new AWS.S3();
         },
         initConfig: function () {
+            $.ajax({ url: "/gets3config", async: false, dataType: 'json', success: function(json) {
+                window.localStorage.setItem('endpoint', json['endpoint'])
+                window.localStorage.setItem('region', json['region'])
+                window.localStorage.setItem('accessKeyId', json['accessKeyId'])
+                window.localStorage.setItem('secretKeyId', json['secretAccessKey'])
+            }});
+
             var endpoint = window.localStorage.getItem('endpoint') || 'http://s3.amazonaws.com',
                 region = window.localStorage.getItem('region') || 'us-east-1',
                 accessKeyId = window.localStorage.getItem('accessKeyId'),
