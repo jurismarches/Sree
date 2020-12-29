@@ -264,9 +264,8 @@ define(['base'], function (base) {
         },
         getDownloadUrl: function(filename) {
             var parser = document.createElement('a');
-            parser.href = AWS.config.endpoint;
-            //     http:              //   s3.amazonaws.com:1234 / bucket name       /    xxx
-            return parser.protocol + '//' + parser.host + '/' + this.bucketName + '/' + filename
+            parser.href = base.s3.getSignedUrl('getObject', {Bucket: this.bucketName, Key: filename});
+            return parser.href
         },
         formatTable: function () {
             var _this = this;
